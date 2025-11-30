@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ÉDITEUR NEMAWASHI V14 - FORMAT UNIFIÉ</title>
+<style>
+:root{
+  --pick:#93C5FD;
+  --tug-route:#FFDD88;
+  --tug-acc:#FFB84D;
+  --tug-dec:#FF9933;
+  --sousass:#CDDC39;
+  --insp:#A7F3D0;
+  --checkpoint:#F472B6;
+  --equipment:#A78BFA;
+  --zone:#FCD34D;
+  --primary:#059669;
+  --bg:#FFFFFF;
+  --text:#111111;
+  --border:#E5E7EB;
+}
+
+[data-theme="dark"]{
+  --primary:#10b981;
+  --bg:#1f2937;
+  --text:#f3f4f6;
+  --border:#374151;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.4 ui-sans-serif,-apple-system,Segoe UI,Roboto,Arial;background:#f5f5f5;color:var(--text);transition:background 0.3s,color 0.3s}
+
+#app{display:grid;grid-template-columns:280px 1fr;height:100vh;gap:0;transition:grid-template-columns 0.3s ease}
+#app.sidebar-hidden{grid-template-columns:0 1fr}
+
+/* TOGGLE SIDEBAR BUTTON - intégré dans le header */
+#toggleSidebar{width:28px;height:28px;background:#1f2937;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0}
+#toggleSidebar:hover{background:#374151}
+
+#library{background:var(--bg);border-right:none;overflow-y:auto;padding:8px 12px;transition:all 0.3s;opacity:1}
+#app.sidebar-hidden #library{opacity:0;overflow:hidden;padding:0}
+
+/* ZOOM GLOBAL iOS */
+.global-zoom-controls{display:flex;gap:2px;align-items:center;background:#fff;padding:2px 4px;border-radius:6px;border:1px solid #e5e7eb}
+.global-zoom-btn{min-width:26px;height:22px;border:1px solid #d0d7de;background:#fff;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;padding:0 4px}
+.global-zoom-btn:hover{background:#f3f4f6}
+.global-zoom-btn:active{background:#e5e7eb}
+.global-zoom-btn.active{background:#0aa2b8;color:#fff;border-color:#0aa2b8}
+
+/* Canvas avec zoom qui reste dans son conteneur */
+#canvas{padding:8px 8px 8px 90px;overflow:auto;background:var(--bg);transition:background 0.3s}
+#canvas.zoomed{overflow:auto}
+#canvas .zoom-wrapper{transform-origin:top left;transition:transform 0.2s}
+
+#timeline{background:var(--bg);border:none;border-radius:8px;padding:0 8px 8px 0;min-height:500px;transition:all 0.3s}
+#editorView{padding-top:20px;overflow:visible}
+#lanes{transform-origin:top left}
+#lanes.zoomed{transform-origin:top left}
+#library h2{font-size:14px;font-weight:800;margin-bottom:12px;color:var(--primary);text-transform:uppercase}
+
+.search-box{margin-bottom:16px;position:relative}
+.search-box input{width:100%;padding:10px 36px 10px 36px;border:2px solid var(--border);border-radius:8px;font-size:13px;transition:all .2s;font-weight:600;background:var(--bg);color:var(--text)}
+.search-box input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(5,150,105,.1)}
+.search-box input::placeholder{color:#999;font-weight:400}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#999;pointer-events:none}
+.search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#999;cursor:pointer;background:#f3f4f6;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;transition:all .2s}
+.search-clear:hover{background:#e5e7eb;color:#111}
+.search-clear.visible{display:flex}
+
+.upload-zone{margin-bottom:12px;padding:0;background:transparent;border:none;border-radius:8px;text-align:center;display:flex;align-items:center;gap:8px;justify-content:flex-start}
+.upload-zone.loaded{background:transparent;border:none}
+.upload-zone input[type="file"]{display:none}
+.upload-zone label{display:inline-block;cursor:pointer;font-size:11px;font-weight:500;color:#666;background:#f3f4f6;padding:6px 12px;border-radius:6px;transition:all .2s;border:1px solid #e5e7eb}
+.upload-zone label:hover{background:#e5e7eb;color:#333;transform:none;box-shadow:none}
+.upload-status{font-size:11px;color:var(--primary);font-weight:600;margin:0}
+.btn-toggle-desc{width:28px;height:28px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.btn-toggle-desc:hover{background:#e5e7eb}
+.btn-toggle-desc.hidden-desc{background:#fee2e2;border-color:#fecaca}
+
+.lib-count{font-size:12px;color:#666;margin-bottom:12px;padding:8px;background:#f9fafb;border-radius:6px;text-align:center;font-weight:700}
+
+.lib-category{margin-bottom:12px;border:2px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg);transition:all .2s}
+.lib-category.collapsed{border-color:#f3f4f6}
+.lib-category-header{padding:12px;cursor:pointer;display:flex;align-items:center;gap:8px;background:#f9fafb;transition:all .2s;user-select:none}
+.lib-category-header:hover{background:#f3f4f6}
+.lib-category-header:active{transform:scale(0.98)}
+.lib-category.collapsed .lib-category-header{background:var(--bg)}
+.category-toggle{font-size:12px;transition:transform .2s;font-weight:900;color:var(--primary)}
+.lib-category.collapsed .category-toggle{transform:rotate(-90deg);color:#999}
+.category-title{font-size:12px;font-weight:700;color:var(--text);flex:1}
+.lib-category.collapsed .category-title{color:#666}
+.category-count{font-size:11px;color:#666;background:#fff;padding:2px 8px;border-radius:12px;font-weight:700}
+.lib-category.collapsed .category-count{background:#f3f4f6}
+
+.lib-category-content{max-height:2000px;overflow:hidden;transition:max-height .3s ease-out;padding:8px}
+.lib-category.collapsed .lib-category-content{max-height:0;padding:0}
+
+.lib-block{background:transparent;border:none;border-radius:8px;padding:8px;margin-bottom:6px;cursor:grab;transition:all .2s}
+.lib-block:hover{background:#f0f0f0;box-shadow:none;transform:translateX(4px)}
+.lib-block:active{cursor:grabbing}
+.lib-block .name{font-size:11px;font-weight:700;margin-bottom:2px}
+.lib-block .info{font-size:10px;color:#666}
+.lib-color{width:20px;height:20px;border-radius:4px;border:1px solid #0002;flex-shrink:0}
+
+.no-results{text-align:center;padding:40px 20px;color:#999}
+.no-results h3{font-size:14px;margin-bottom:6px;font-weight:700}
+.no-results p{font-size:12px}
+
+.empty-library{text-align:center;padding:40px 20px;color:#999}
+.empty-library h3{font-size:16px;margin-bottom:8px}
+.empty-library p{font-size:12px}
+
+.timeline-header{display:flex;justify-content:flex-start;align-items:center;margin-bottom:8px;padding-bottom:0;border-bottom:none;flex-wrap:wrap;gap:8px}
+
+.history-controls{display:flex;gap:4px}
+.history-btn{background:#374151;border:none;color:#fff;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;transition:all 0.2s}
+.history-btn:hover:not(:disabled){background:#4b5563}
+.history-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+.theme-toggle{background:#374151;border:none;color:#fff;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;transition:all 0.2s}
+.theme-toggle:hover{background:#4b5563}
+
+.zoom-controls{display:flex;gap:4px;align-items:center;background:#f9fafb;padding:4px 8px;border-radius:6px}
+.zoom-btn{background:#fff;border:none;color:#374151;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;transition:all .2s}
+.zoom-btn:hover{background:#f3f4f6;border:none}
+.zoom-btn.btn-inactive{background:#e5e7eb;color:#9ca3af}
+.zoom-level{font-size:11px;font-weight:700;color:#374151;min-width:50px;text-align:center}
+
+.kpi{display:flex;gap:20px;font-size:13px;display:none}
+.kpi-item{display:flex;flex-direction:column;align-items:flex-end}
+.kpi-label{font-size:10px;color:#666;font-weight:700;text-transform:uppercase}
+.kpi-value{font-size:18px;font-weight:900;color:var(--primary)}
+.kpi-value.warning{color:#d97706}
+.kpi-value.bad{color:#dc2626}
+
+.lane-header{display:flex;align-items:center;gap:4px;margin-bottom:8px;position:absolute;left:-85px;top:40px;width:85px}
+.lane-header input{padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:10px;font-weight:700;flex:1;background:var(--bg);color:var(--text);width:65px}
+.btn-lane-action{width:20px;height:20px;background:#1f2937;color:#fff;border:none;border-radius:4px;cursor:grab;font-size:12px;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:all 0.2s;flex-shrink:0}
+.btn-lane-action:hover{background:#ef4444;opacity:1;cursor:pointer}
+.btn-lane-action:active{cursor:grabbing}
+.lane-editor{margin-bottom:55px;position:relative}
+
+.lane-track{position:relative;height:80px;background:repeating-linear-gradient(135deg,#f9fafb 0 8px,#f3f4f6 8px 16px);border:none;border-radius:10px;overflow:visible}
+
+#editorView{display:block;width:100%;position:relative}
+
+.ticksTop{position:absolute;left:0;right:0;top:-20px;height:18px;pointer-events:none;z-index:10}
+.itick{position:absolute;bottom:0;width:1px;height:11px;background:#64748b55;transform:translateX(-.5px)}
+.itick.major{height:13px;width:2px;background:#334155;opacity:.7}
+.itick .lbl{position:absolute;top:-14px;transform:translateX(-50%);font-size:11px;color:#334155;font-weight:600;white-space:nowrap}
+.itick .lbl.cin-all{display:none}
+.cin-show-ticks .itick .lbl.cin-all{display:block}
+
+.lane-ruler{position:absolute;top:-20px;left:0;right:0;height:20px;display:flex;justify-content:space-between;font-size:10px;color:#666;font-weight:700;display:none}
+.lane-ruler span{position:relative}
+.lane-ruler span::after{content:'';position:absolute;top:16px;left:50%;width:2px;height:8px;background:#999;transform:translateX(-50%)}
+
+.time-cursor{position:absolute;top:-20px;bottom:-50px;width:2px;background:var(--primary);opacity:0;pointer-events:none;z-index:5;transition:opacity .1s}
+.time-cursor.visible{opacity:1}
+.time-cursor::before{content:attr(data-time);position:absolute;top:-25px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;font-weight:900;white-space:nowrap}
+.time-cursor::after{content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:var(--primary);border-radius:50%;border:2px solid #fff}
+
+.track-block{position:absolute;top:50%;transform:translateY(-50%);height:60%;background:#93C5FD;border:2px solid #0003;border-radius:8px;cursor:move;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#333;transition:all .2s;overflow:hidden}
+.track-block:hover{height:70%;box-shadow:0 6px 16px rgba(0,0,0,.2);z-index:4;border-color:#000}
+.track-block.dragging{opacity:0.5;cursor:grabbing}
+.track-block.selected{outline:3px solid #3b82f6;outline-offset:2px;z-index:5;box-shadow:0 0 0 1px #3b82f6}
+.track-block.selected::after{content:attr(data-selection-count);position:absolute;top:-8px;right:-8px;background:#3b82f6;color:#fff;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.selection-rectangle{position:absolute;border:2px dashed #3b82f6;background:rgba(59,130,246,0.1);pointer-events:none;z-index:100}
+.track-block.pick{background:var(--pick)}
+.track-block.tug-route{background:var(--tug-route)}
+.track-block.tug-acc{background:var(--tug-acc)}
+.track-block.tug-dec{background:var(--tug-dec)}
+.track-block.sousass{background:var(--sousass)}
+.track-block.insp{background:var(--insp)}
+.track-block.checkpoint{background:var(--checkpoint);border-left:4px solid #BE185D;border-right:4px solid #BE185D}
+.track-block.equipment{background:var(--equipment);border-style:dashed}
+.track-block.zone{background:var(--zone);opacity:0.7}
+.track-block.note{background:#FEF3C7;border:2px solid #F59E0B;box-shadow:0 4px 12px rgba(245,158,11,0.3);font-size:9px;text-align:left;padding:4px 6px;line-height:1.2;white-space:pre-wrap;overflow:visible;height:auto !important;min-height:40px}
+.track-block.logo{background:transparent;color:#333;font-size:24px;border:none;box-shadow:none;z-index:10;width:40px !important;min-width:40px;flex-shrink:0;overflow:visible !important}
+.track-block.logo:hover{z-index:11}
+.track-block.logo-arrow-down::before{content:'';position:absolute;top:50%;left:50%;transform:translateX(-50%);width:3px;height:80px;background:#000;z-index:-1}
+.track-block.logo-arrow-down::after{content:'▶';position:absolute;top:calc(50% + 80px);left:50%;transform:translateX(-50%) translateY(-50%) rotate(90deg);font-size:20px;color:#000}
+.track-block.logo-arrow-short::before{content:'';position:absolute;top:50%;left:50%;transform:translateX(-50%);width:2px;height:40px;background:#000;z-index:-1}
+.track-block.logo-arrow-short::after{content:'▶';position:absolute;top:calc(50% + 40px);left:50%;transform:translateX(-50%) translateY(-50%) rotate(90deg);font-size:16px;color:#000}
+
+/* Flèches HAUT */
+.track-block.logo-arrow-thin-up::before{content:'';position:absolute;bottom:50%;left:50%;transform:translateX(-50%);width:1px;height:60px;background:#000;z-index:12}
+.track-block.logo-arrow-thin-up::after{content:'▲';position:absolute;bottom:calc(50% + 60px);left:50%;transform:translateX(-50%);font-size:12px;color:#000;z-index:12}
+.track-block.logo-arrow-up-long::before{content:'';position:absolute;bottom:50%;left:50%;transform:translateX(-50%);width:3px;height:80px;background:#000;z-index:12}
+.track-block.logo-arrow-up-long::after{content:'▲';position:absolute;bottom:calc(50% + 80px);left:50%;transform:translateX(-50%);font-size:16px;color:#000;z-index:12}
+.track-block.logo-arrow-up-short::before{content:'';position:absolute;bottom:50%;left:50%;transform:translateX(-50%);width:2px;height:50px;background:#000;z-index:12}
+.track-block.logo-arrow-up-short::after{content:'▲';position:absolute;bottom:calc(50% + 50px);left:50%;transform:translateX(-50%);font-size:14px;color:#000;z-index:12}
+
+/* Flèches BAS */
+.track-block.logo-arrow-thin-down::before{content:'';position:absolute;top:50%;left:50%;transform:translateX(-50%);width:1px;height:60px;background:#000;z-index:-1}
+.track-block.logo-arrow-thin-down::after{content:'▶';position:absolute;top:calc(50% + 60px);left:50%;transform:translateX(-50%) translateY(-50%) rotate(90deg);font-size:14px;color:#000}
+
+/* POPUP DÉTAIL BLOC */
+.block-detail-popup{position:absolute;left:0;right:0;top:calc(100% + 8px);background:#fff;border:2px solid #3b82f6;border-radius:8px;padding:12px 16px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.2);min-width:280px}
+.block-detail-popup .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #e5e7eb}
+.block-detail-popup .title{font-weight:700;font-size:13px;color:#1f2937}
+.block-detail-popup .close{cursor:pointer;background:#ef4444;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:600;transition:all .2s}
+.block-detail-popup .close:hover{background:#dc2626}
+.block-detail-popup .info-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:11px;line-height:1.6}
+.block-detail-popup .info-label{color:#6b7280;font-weight:600}
+.block-detail-popup .info-value{color:#1f2937;font-weight:500}
+.track-block.expanded{outline:3px solid #3b82f6;outline-offset:2px;z-index:99;overflow:visible !important}
+
+/* CHECKBOX ET DRAG LANE */
+.lane-editor{display:grid;grid-template-columns:24px 20px 1fr;gap:4px;align-items:start;margin-bottom:12px;position:relative;transition:opacity .2s}
+.lane-editor.dragging{opacity:0.5;cursor:grabbing}
+.lane-editor.hidden{display:none}
+.lane-checkbox{width:18px;height:18px;cursor:pointer;margin-top:32px}
+.lane-content{position:relative}
+
+/* TICKS RULER */
+.lane-ruler{position:absolute;top:-22px;left:0;right:0;height:20px;display:flex;justify-content:space-between;pointer-events:none;font-size:10px;font-weight:600;color:#64748b}
+
+/* LÉGENDE INLINE */
+.legend-item{display:flex;align-items:center;gap:6px;background:#fff;padding:4px 10px;border-radius:6px;border:1px solid #e5e7eb;font-size:11px;font-weight:600;color:#374151}
+.legend-chip{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,0.1)}
+.track-block .btn-delete{position:absolute;top:2px;right:2px;width:8px;height:8px;background:#000;color:transparent;border:none;border-radius:2px;cursor:pointer;font-size:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.track-block:hover .btn-delete{opacity:0.6}
+.track-block .btn-delete:hover{opacity:1;background:#ef4444}
+.track-block .duration{pointer-events:none}
+
+.label-markers{position:absolute;bottom:-55px;left:0;right:0;height:50px}
+.label-marker{position:absolute;font-size:8px;color:var(--text);text-align:left;pointer-events:none;max-width:150px;transition:all 0.2s}
+.label-marker.hover-visible{background:rgba(16,185,129,0.15);padding:2px 4px;border-radius:4px;font-weight:800;z-index:20}
+.label-line{font-weight:700;line-height:1.2}
+.label-duration{font-size:8px;color:#666;margin-top:2px;display:none}
+
+#controls{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
+#controls button{padding:12px 24px;border:2px solid var(--primary);background:var(--bg);color:var(--primary);border-radius:8px;cursor:pointer;font-weight:700;font-size:14px;transition:all .2s}
+#controls button:hover{background:#f0fdf4;transform:translateY(-2px);box-shadow:0 4px 12px rgba(5,150,105,.2)}
+#btnExport{background:var(--primary);color:#fff;border-color:var(--primary)}
+#btnExport:hover{background:#047857}
+#btnAddLane{background:#3b82f6;color:#fff;border-color:#3b82f6}
+#btnAddLane:hover{background:#2563eb}
+
+.empty-state{text-align:center;padding:60px 20px;color:#999}
+.empty-state h3{font-size:18px;margin-bottom:8px}
+.empty-state p{font-size:13px}
+
+.save-toast{position:fixed;bottom:20px;right:20px;background:var(--primary);color:#fff;padding:12px 20px;border-radius:8px;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:1000}
+.save-toast.visible{opacity:1}
+
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-content{background:var(--bg);border-radius:12px;padding:30px;max-width:600px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);max-height:80vh;overflow-y:auto}
+.modal-header{font-size:24px;font-weight:700;margin-bottom:20px;color:var(--text)}
+.modal-body{margin-bottom:20px;color:var(--text)}
+.modal-body p{margin-bottom:12px;line-height:1.6}
+.modal-body ul{margin-left:20px;margin-bottom:12px}
+.modal-body li{margin-bottom:8px}
+.modal-actions{display:flex;gap:12px;justify-content:flex-end}
+.modal-btn{padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;transition:all 0.2s}
+.modal-btn-primary{background:var(--primary);color:#fff}
+.modal-btn-primary:hover{background:#047857}
+.modal-btn-secondary{background:#6b7280;color:#fff}
+.modal-btn-secondary:hover{background:#4b5563}
+</style>
+</head>
+<body>
+
+<div id="app" class="sidebar-hidden">
+  <div id="library">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="csvUpload" accept=".csv,.txt"/>
+      <label for="csvUpload">📂 CHARGER CSV</label>
+      <button id="toggleDescriptions" class="btn-toggle-desc" title="Masquer/Afficher descriptions">👁️</button>
+    </div>
+    <div id="uploadStatus" style="text-align:center;font-size:11px;color:var(--primary);font-weight:600;margin-bottom:8px"></div>
+    
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Rechercher un bloc..."/>
+      <span class="search-clear" id="searchClear">✕</span>
+    </div>
+    
+    <div class="lib-count" id="libCount">0 blocs disponibles</div>
+    
+    <div id="libContent">
+      <div class="empty-library">
+        <h3>📦 Bibliothèque vide</h3>
+        <p>Les logos sont toujours disponibles</p>
+      </div>
+    </div>
+  </div>
+  
+  <div id="canvas">
+    <div id="timeline">
+      <div class="timeline-header">
+        <!-- Légende intégrée au header -->
+        <div class="legend-inline-container" style="display:flex;gap:6px;padding:2px 4px;background:#f9fafb;border-radius:6px;margin-right:auto;">
+          <div class="legend-item" style="padding:2px 6px;font-size:10px"><div class="legend-chip" style="background:#93C5FD;width:12px;height:12px"></div>PICK</div>
+          <div class="legend-item" style="padding:2px 6px;font-size:10px"><div class="legend-chip" style="background:#FFDD88;width:12px;height:12px"></div>ROUTE</div>
+          <div class="legend-item" style="padding:2px 6px;font-size:10px"><div class="legend-chip" style="background:#FFB84D;width:12px;height:12px"></div>ACC</div>
+          <div class="legend-item" style="padding:2px 6px;font-size:10px"><div class="legend-chip" style="background:#FF9933;width:12px;height:12px"></div>DÉC</div>
+          <div class="legend-item" style="padding:2px 6px;font-size:10px"><div class="legend-chip" style="background:#CDDC39;width:12px;height:12px"></div>S-ASS</div>
+          <div class="legend-item" style="padding:2px 6px;font-size:10px"><div class="legend-chip" style="background:#A7F3D0;width:12px;height:12px"></div>CTRL</div>
+        </div>
+        
+        <!-- Toggle Sidebar -->
+        <button id="toggleSidebar" title="Bibliothèque">▶</button>
+        
+        <div class="history-controls">
+          <button class="history-btn" id="undoBtn" disabled title="Annuler">↶</button>
+          <button class="history-btn" id="redoBtn" disabled title="Refaire">↷</button>
+          <button class="history-btn" id="btnAddLane">+ Lane</button>
+          <button class="history-btn" id="btnProjects" style="background:#10b981">PROJETS</button>
+          <button class="history-btn" id="btnExport">CSV</button>
+        </div>
+        
+        <div style="display:flex;gap:4px;align-items:center;background:#f9fafb;padding:3px 8px;border-radius:5px;font-size:10px">
+          <label style="font-weight:700;color:#374151">Takt:</label>
+          <input id="taktInput" type="number" min="1" step="1" value="116" 
+                 style="width:45px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:10px;font-weight:700;text-align:center;background:var(--bg);color:var(--text)">
+          <label style="font-weight:700;color:#374151">Tick:</label>
+          <input id="tickInput" type="number" min="1" step="1" value="2" 
+                 style="width:35px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:10px;font-weight:700;text-align:center;background:var(--bg);color:var(--text)">
+          <label style="display:flex;align-items:center;gap:3px;font-size:10px;cursor:pointer">
+            <input id="toggleAllTicks" type="checkbox">
+            <span style="font-weight:600;color:#374151">Ticks</span>
+          </label>
+        </div>
+        
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoomOutBtn">−</button>
+          <span class="zoom-level" id="zoomLevel">100%</span>
+          <button class="zoom-btn" id="zoomInBtn">+</button>
+          <button class="zoom-btn" id="zoomFitBtn">Fit</button>
+        </div>
+        
+        <button class="zoom-btn" id="toggleLaneNames" title="Noms lanes" style="padding:5px 8px">L</button>
+        <button class="zoom-btn" id="toggleBlockLabels" title="Descriptions" style="padding:5px 8px">T</button>
+        
+        <button class="zoom-btn" id="btnFullscreen" title="Plein écran" style="font-size:14px;padding:4px 8px">⛶</button>
+        
+        <!-- ZOOM GLOBAL iOS -->
+        <div class="global-zoom-controls">
+          <button class="global-zoom-btn active" data-global-zoom="1">100</button>
+          <button class="global-zoom-btn" data-global-zoom="0.9">90</button>
+          <button class="global-zoom-btn" data-global-zoom="0.8">80</button>
+          <button class="global-zoom-btn" data-global-zoom="0.7">70</button>
+          <button class="global-zoom-btn" data-global-zoom="0.6">60</button>
+          <button class="global-zoom-btn" data-global-zoom="0.5">50</button>
+        </div>
+        </div>
+      
+      <div id="editorView">
+        <div id="lanes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="save-toast" id="saveToast">✓ Sauvegardé</div>
+<!-- Modal Cloud Sync -->
+<div class="modal" id="cloudModal">
+  <div class="modal-content">
+    <div class="modal-header">☁️ Cloud Sync</div>
+    <div class="modal-body">
+      <p>La synchronisation cloud permettra de :</p>
+      <ul>
+        <li>✅ Sauvegarder vos compositions en ligne</li>
+        <li>✅ Synchroniser entre Mac, PC, iPad</li>
+        <li>✅ Partager avec votre équipe</li>
+        <li>✅ Accéder à l'historique des versions</li>
+        <li>✅ Collaborer en temps réel</li>
+      </ul>
+      <p><strong>Note :</strong> Cette fonctionnalité nécessite un compte cloud. Pour le moment, elle est en mode démo.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-secondary" onclick="closeModal('cloudModal')">Fermer</button>
+      <button class="modal-btn modal-btn-primary" onclick="showCloudDemo()">En savoir plus</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Projets -->
+<div class="modal" id="projectsModal">
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-body" style="padding:20px">
+      <div style="display:grid;gap:10px">
+        <button class="modal-btn modal-btn-primary" id="btnSaveProject" style="width:100%;justify-content:center">
+          💾 Save
+        </button>
+        <button class="modal-btn modal-btn-primary" id="btnLoadProject" style="width:100%;justify-content:center">
+          📂 Load
+        </button>
+        <button class="modal-btn modal-btn-primary" id="btnExportProject" style="width:100%;justify-content:center">
+          📤 Export
+        </button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('projectsModal')" style="width:100%;justify-content:center;margin-top:8px">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="projectFileInput" accept=".json" style="display:none">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+const LIBRARY = [];
+const LOGO_LIBRARY = [
+  {label: '⚠️ Alerte', duration: 0.5, type: 'logo', icon: '⚠️', lane: 'Logos'},
+  {label: '✅ Validé', duration: 0.5, type: 'logo', icon: '✅', lane: 'Logos'},
+  {label: '✖️ Croix', duration: 0.5, type: 'logo', icon: '✖️', lane: 'Logos'},
+  
+  // Flèches HAUT
+  {label: '↑ Flèche fine haut', duration: 0.5, type: 'logo', icon: '●', specialClass: 'logo-arrow-thin-up', lane: 'Logos'},
+  {label: '↑ Flèche longue haut', duration: 0.5, type: 'logo', icon: '●', specialClass: 'logo-arrow-up-long', lane: 'Logos'},
+  {label: '↑ Flèche courte haut', duration: 0.5, type: 'logo', icon: '●', specialClass: 'logo-arrow-up-short', lane: 'Logos'},
+  
+  // Flèches BAS
+  {label: '↓ Flèche fine bas', duration: 0.5, type: 'logo', icon: '●', specialClass: 'logo-arrow-thin-down', lane: 'Logos'},
+  {label: '↓ Flèche longue bas', duration: 0.5, type: 'logo', icon: '●', specialClass: 'logo-arrow-down', lane: 'Logos'},
+  {label: '↓ Flèche courte bas', duration: 0.5, type: 'logo', icon: '●', specialClass: 'logo-arrow-short', lane: 'Logos'},
+  
+  {label: '⬆️ Haut', duration: 0.5, type: 'logo', icon: '⬆️', lane: 'Logos'},
+  {label: '⬇️ Bas', duration: 0.5, type: 'logo', icon: '⬇️', lane: 'Logos'},
+  {label: '⬅️ Gauche', duration: 0.5, type: 'logo', icon: '⬅️', lane: 'Logos'},
+  {label: '➡️ Droite', duration: 0.5, type: 'logo', icon: '➡️', lane: 'Logos'},
+  {label: '📝 Note', duration: 2, type: 'note', icon: '📝', lane: 'Logos'}
+];
+const LANES = [];
+let laneCounter = 0;
+let draggedLibBlock = null;
+let draggedTrackBlock = null;
+let zoomScale = 1.0;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3.0;
+const ZOOM_STEP = 0.05; // Plus fin pour meilleur contrôle
+let MAX_TIME = 116; // 70 ou 116 minutes
+let TICK_INTERVAL = 2; // Intervalle entre les ticks
+let SHOW_ALL_TICKS = false; // Toggle pour afficher tous les ticks
+
+// SÉLECTION MULTIPLE
+let selectedBlocks = new Set(); // Set de {laneId, blockIdx}
+let isSelecting = false;
+let selectionStartX = 0;
+let selectionStartY = 0;
+let selectionRect = null;
+
+const collapsedCategories = new Set();
+
+// TAKT & TICK CONTROLS
+document.getElementById('taktInput').addEventListener('change', (e) => {
+  const newTakt = Math.max(1, parseInt(e.target.value) || 116);
+  MAX_TIME = newTakt;
+  document.getElementById('taktInput').value = newTakt;
+  renderLanes();
+});
+
+document.getElementById('tickInput').addEventListener('change', (e) => {
+  const newTick = Math.max(1, parseInt(e.target.value) || 2);
+  TICK_INTERVAL = newTick;
+  document.getElementById('tickInput').value = newTick;
+  renderLanes();
+});
+
+document.getElementById('toggleAllTicks').addEventListener('change', (e) => {
+  SHOW_ALL_TICKS = e.target.checked;
+  document.querySelectorAll('.lane-track').forEach(track => {
+    if(SHOW_ALL_TICKS) {
+      track.classList.add('cin-show-ticks');
+    } else {
+      track.classList.remove('cin-show-ticks');
+    }
+  });
+});
+
+// FUNCTION TO GENERATE TICKS
+function generateTicksHTML() {
+  let html = '';
+  const mid = MAX_TIME / 2;
+  
+  // Ticks majeurs : 0, milieu, fin
+  html += `<div class="itick major" style="left:0%"><div class="lbl">0</div></div>`;
+  html += `<div class="itick major" style="left:50%"><div class="lbl">${mid.toFixed(0)}</div></div>`;
+  html += `<div class="itick major" style="left:100%"><div class="lbl">${MAX_TIME}</div></div>`;
+  
+  // Ticks mineurs selon l'intervalle défini
+  for(let t = TICK_INTERVAL; t < MAX_TIME; t += TICK_INTERVAL) {
+    if(t === mid) continue; // Skip le milieu qui est déjà un tick majeur
+    const pct = (t / MAX_TIME) * 100;
+    html += `<div class="itick" style="left:${pct}%"><div class="lbl cin-all">${t}</div></div>`;
+  }
+  
+  return html;
+}
+
+// MODALS
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function showCloudDemo() {
+  alert('☁️ CLOUD SYNC\n\nFonctionnalités prévues :\n\n' +
+    '✅ Sauvegarde cloud automatique\n' +
+    '✅ Sync multi-devices (Mac/PC/iPad)\n' +
+    '✅ Partage avec l\'équipe\n' +
+    '✅ Historique des versions\n' +
+    '✅ Collaboration temps réel\n\n' +
+    'Cette fonctionnalité nécessite un compte cloud.');
+  closeModal('cloudModal');
+}
+
+// UNDO/REDO
+class HistoryManager {
+  constructor(maxSize = 50) {
+    this.history = [];
+    this.currentIndex = -1;
+    this.maxSize = maxSize;
+  }
+  
+  saveState(state) {
+    this.history = this.history.slice(0, this.currentIndex + 1);
+    this.history.push(JSON.parse(JSON.stringify(state)));
+    if (this.history.length > this.maxSize) {
+      this.history.shift();
+    } else {
+      this.currentIndex++;
+    }
+    this.updateButtons();
+    autoSave();
+  }
+  
+  undo() {
+    if (this.canUndo()) {
+      this.currentIndex--;
+      this.updateButtons();
+      return JSON.parse(JSON.stringify(this.history[this.currentIndex]));
+    }
+    return null;
+  }
+  
+  redo() {
+    if (this.canRedo()) {
+      this.currentIndex++;
+      this.updateButtons();
+      return JSON.parse(JSON.stringify(this.history[this.currentIndex]));
+    }
+    return null;
+  }
+  
+  canUndo() {
+    return this.currentIndex > 0;
+  }
+  
+  canRedo() {
+    return this.currentIndex < this.history.length - 1;
+  }
+  
+  updateButtons() {
+    document.getElementById('undoBtn').disabled = !this.canUndo();
+    document.getElementById('redoBtn').disabled = !this.canRedo();
+  }
+  
+  clear() {
+    this.history = [];
+    this.currentIndex = -1;
+    this.updateButtons();
+  }
+}
+
+const historyManager = new HistoryManager();
+
+// AUTO-SAVE
+let autoSaveTimer = null;
+const AUTO_SAVE_INTERVAL = 30000;
+
+function autoSave() {
+  try {
+    const state = {
+      lanes: LANES,
+      library: LIBRARY,
+      zoomScale: zoomScale,
+      theme: currentTheme,
+      maxTime: MAX_TIME,
+      tickInterval: TICK_INTERVAL,
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('nemawashi_v12_ticks', JSON.stringify(state));
+    
+    const toast = document.getElementById('saveToast');
+    toast.classList.add('visible');
+    setTimeout(() => {
+      toast.classList.remove('visible');
+    }, 2000);
+  } catch (e) {
+    console.error('Erreur sauvegarde:', e);
+  }
+}
+
+function loadAutoSave() {
+  try {
+    const saved = localStorage.getItem('nemawashi_v12_ticks');
+    if (saved) {
+      const state = JSON.parse(saved);
+      
+      // Charger la library si elle existe
+      if (state.library && state.library.length > 0) {
+        LIBRARY.length = 0;
+        LIBRARY.push(...state.library);
+      }
+      
+      // Charger les lanes si elles existent
+      if (state.lanes && state.lanes.length > 0) {
+        LANES.length = 0;
+        LANES.push(...state.lanes);
+        
+        if (LANES.length > 0) {
+          laneCounter = Math.max(...LANES.map(l => l.id));
+        }
+      }
+      
+      // Charger le zoom
+      if (state.zoomScale) {
+        zoomScale = state.zoomScale;
+      }
+      
+      // Charger le thème
+      if (state.theme) {
+        currentTheme = state.theme;
+        document.documentElement.setAttribute('data-theme', currentTheme);
+      }
+      
+      // Charger MAX_TIME si sauvegardé
+      if (state.maxTime) {
+        MAX_TIME = state.maxTime;
+        document.getElementById('taktInput').value = MAX_TIME;
+      }
+      
+      // Charger TICK_INTERVAL si sauvegardé
+      if (state.tickInterval) {
+        TICK_INTERVAL = state.tickInterval;
+        document.getElementById('tickInput').value = TICK_INTERVAL;
+      }
+      
+      renderLibrary();
+      renderLanes();
+      if (LANES.length > 0) {
+        historyManager.saveState({ lanes: LANES });
+      }
+    }
+  } catch (e) {
+    console.error('Erreur chargement:', e);
+  }
+}
+
+function startAutoSave() {
+  if (autoSaveTimer) clearInterval(autoSaveTimer);
+  autoSaveTimer = setInterval(() => {
+    if (LIBRARY.length > 0 || LANES.length > 0) autoSave();
+  }, AUTO_SAVE_INTERVAL);
+}
+
+// ZOOM
+function setZoom(scale) {
+  const canvas = document.getElementById('canvas');
+  
+  // 🎯 CONSERVATION DE LA POSITION : Calculer le point focal avant le zoom
+  const scrollLeft = canvas.scrollLeft;
+  const scrollWidth = canvas.scrollWidth;
+  const clientWidth = canvas.clientWidth;
+  
+  // Ratio de position : où on est dans le scroll (0 = début, 1 = fin)
+  const scrollRatio = scrollWidth > clientWidth ? scrollLeft / (scrollWidth - clientWidth) : 0;
+  
+  // Appliquer le nouveau zoom
+  const oldZoom = zoomScale;
+  zoomScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale));
+  document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+  
+  // Re-render avec le nouveau zoom
+  renderLanes();
+  
+  // 🎯 RESTAURER LA POSITION : Appliquer le même ratio au nouveau scrollWidth
+  requestAnimationFrame(() => {
+    const newScrollWidth = canvas.scrollWidth;
+    const newClientWidth = canvas.clientWidth;
+    if(newScrollWidth > newClientWidth) {
+      const newScrollLeft = scrollRatio * (newScrollWidth - newClientWidth);
+      canvas.scrollLeft = newScrollLeft;
+    }
+  });
+}
+
+function zoomIn() {
+  setZoom(zoomScale + ZOOM_STEP);
+}
+
+function zoomOut() {
+  setZoom(zoomScale - ZOOM_STEP);
+}
+
+function zoomToFit() {
+  // À 100% (zoomScale = 1.0), on veut que MAX_TIME rentre exactement dans l'écran
+  // Donc on calcule la base pour que ce soit le cas
+  const canvas = document.getElementById('canvas');
+  const availableWidth = canvas.clientWidth - 80;
+  
+  // On veut que trackWidthPx = availableWidth quand zoomScale = 1.0
+  // Donc baseWidth doit être = availableWidth
+  // Actuellement baseWidth = availableWidth et trackWidthPx = baseWidth * zoomScale
+  // C'est déjà bon ! Mettons juste le zoom à 1.0
+  setZoom(1.0);
+}
+
+document.getElementById('zoomInBtn').addEventListener('click', zoomIn);
+document.getElementById('zoomOutBtn').addEventListener('click', zoomOut);
+document.getElementById('zoomFitBtn').addEventListener('click', zoomToFit);
+
+document.getElementById('canvas').addEventListener('wheel', (e) => {
+  // Détection du geste pinch (Magic Trackpad) : ctrlKey est automatiquement activé
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    
+    // deltaY négatif = zoom in, positif = zoom out
+    const delta = -e.deltaY;
+    
+    // Sensibilité drastiquement augmentée pour tests rapides
+    const zoomSensitivity = Math.abs(delta) > 50 ? 0.015 : 0.008;
+    
+    if (Math.abs(e.deltaY) > 0) {
+      const zoomChange = delta * zoomSensitivity;
+      const newZoom = zoomScale + zoomChange;
+      setZoom(newZoom);
+    }
+  }
+}, { passive: false });
+
+// Click sur canvas pour désélectionner
+document.getElementById('canvas').addEventListener('click', (e) => {
+  // Seulement si on clique sur le canvas lui-même (pas sur un bloc)
+  if(e.target.id === 'canvas' || e.target.id === 'lanes' || e.target.classList.contains('lane-track')) {
+    clearSelection();
+  }
+});
+
+// UNDO/REDO
+document.getElementById('undoBtn').addEventListener('click', () => {
+  const state = historyManager.undo();
+  if (state) {
+    LANES.length = 0;
+    LANES.push(...state.lanes);
+    renderLanes();
+  }
+});
+
+document.getElementById('redoBtn').addEventListener('click', () => {
+  const state = historyManager.redo();
+  if (state) {
+    LANES.length = 0;
+    LANES.push(...state.lanes);
+    renderLanes();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey) {
+    if (e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('undoBtn').click();
+    } else if (e.key === 'z' && e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('redoBtn').click();
+    } else if (e.key === 'a') {
+      e.preventDefault();
+      // Sélectionner tous les blocs de toutes les lanes
+      selectedBlocks.clear();
+      LANES.forEach(lane => {
+        lane.blocks.forEach((block, idx) => {
+          selectedBlocks.add(`${lane.id}-${idx}`);
+        });
+      });
+      renderLanes();
+    }
+  }
+  
+  // Delete : supprimer les blocs sélectionnés
+  if(e.key === 'Delete' || e.key === 'Backspace') {
+    if(selectedBlocks.size > 0 && !e.target.matches('input, textarea')) {
+      e.preventDefault();
+      deleteSelectedBlocks();
+    }
+  }
+  
+  // Flèches : déplacer les blocs sélectionnés
+  if(selectedBlocks.size > 0 && !e.target.matches('input, textarea')) {
+    if(e.key === 'ArrowLeft') {
+      e.preventDefault();
+      moveSelectedBlocks(-0.5); // -0.5 minutes
+    } else if(e.key === 'ArrowRight') {
+      e.preventDefault();
+      moveSelectedBlocks(0.5); // +0.5 minutes
+    }
+  }
+  
+  // Escape : désélectionner
+  if(e.key === 'Escape') {
+    clearSelection();
+  }
+});
+
+// PROJETS - Import/Export
+document.getElementById('btnProjects').addEventListener('click', () => {
+  document.getElementById('projectsModal').classList.add('active');
+});
+
+document.getElementById('btnSaveProject').addEventListener('click', () => {
+  const projectName = prompt('Nom du projet :', 'NEMAWASHI_' + new Date().toISOString().slice(0,10));
+  if(!projectName) return;
+  
+  const project = {
+    name: projectName,
+    version: 'v12_ticks',
+    lanes: LANES,
+    library: LIBRARY,
+    zoomScale: zoomScale,
+    maxTime: MAX_TIME,
+    tickInterval: TICK_INTERVAL,
+    timestamp: new Date().toISOString()
+  };
+  
+  const blob = new Blob([JSON.stringify(project, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = projectName + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  alert('✅ Projet sauvegardé : ' + projectName + '.json');
+});
+
+document.getElementById('btnLoadProject').addEventListener('click', () => {
+  document.getElementById('projectFileInput').click();
+});
+
+document.getElementById('projectFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const project = JSON.parse(evt.target.result);
+      
+      if(!project.lanes || !Array.isArray(project.lanes)) {
+        alert('❌ Fichier projet invalide !');
+        return;
+      }
+      
+      // Charger le projet
+      LANES.length = 0;
+      LANES.push(...project.lanes);
+      
+      if(project.library && Array.isArray(project.library)) {
+        LIBRARY.length = 0;
+        LIBRARY.push(...project.library);
+      }
+      
+      if(project.zoomScale) zoomScale = project.zoomScale;
+      if(project.maxTime) {
+        MAX_TIME = project.maxTime;
+        document.getElementById('taktInput').value = MAX_TIME;
+      }
+      if(project.tickInterval) {
+        TICK_INTERVAL = project.tickInterval;
+        document.getElementById('tickInput').value = TICK_INTERVAL;
+      }
+      
+      // Mettre à jour laneCounter seulement si des lanes existent
+      if(LANES.length > 0) {
+        laneCounter = Math.max(...LANES.map(l => l.id || 0));
+      } else {
+        laneCounter = 0;
+      }
+      
+      // Replier les catégories
+      collapsedCategories.clear();
+      const lanes = [...new Set(LIBRARY.map(b => b.lane))];
+      lanes.forEach(lane => collapsedCategories.add(lane));
+      collapsedCategories.add('Logos');
+      
+      renderLibrary();
+      renderLanes();
+      historyManager.clear();
+      historyManager.saveState({ lanes: LANES });
+      
+      closeModal('projectsModal');
+      alert('✅ Projet chargé : ' + (project.name || 'Sans nom'));
+    } catch(err) {
+      console.error('Erreur chargement projet:', err);
+      alert('❌ Erreur lors du chargement du projet !\n' + err.message);
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+  e.target.value = ''; // Reset input
+});
+
+document.getElementById('btnExportProject').addEventListener('click', () => {
+  if(LANES.length === 0 && LIBRARY.length === 0) {
+    alert('❌ Aucun projet à exporter !');
+    return;
+  }
+  
+  const projectName = prompt('Nom du projet :', 'NEMAWASHI_' + new Date().toISOString().slice(0,10));
+  if(!projectName) return;
+  
+  const project = {
+    name: projectName,
+    version: 'v12_ticks',
+    lanes: LANES,
+    library: LIBRARY,
+    zoomScale: zoomScale,
+    maxTime: MAX_TIME,
+    tickInterval: TICK_INTERVAL,
+    timestamp: new Date().toISOString()
+  };
+  
+  const blob = new Blob([JSON.stringify(project, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = projectName + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  closeModal('projectsModal');
+  alert('✅ Projet exporté : ' + projectName + '.json');
+});
+
+// ========== SÉLECTION MULTIPLE ==========
+
+function clearSelection() {
+  selectedBlocks.clear();
+  renderLanes();
+}
+
+function isBlockSelected(laneId, blockIdx) {
+  return selectedBlocks.has(`${laneId}-${blockIdx}`);
+}
+
+function toggleBlockSelection(laneId, blockIdx, isShiftKey = false) {
+  const blockId = `${laneId}-${blockIdx}`;
+  
+  if(!isShiftKey) {
+    // Click normal : sélectionner uniquement ce bloc
+    selectedBlocks.clear();
+    selectedBlocks.add(blockId);
+  } else {
+    // Shift+Click : ajouter/retirer de la sélection
+    if(selectedBlocks.has(blockId)) {
+      selectedBlocks.delete(blockId);
+    } else {
+      selectedBlocks.add(blockId);
+    }
+  }
+  
+  renderLanes();
+}
+
+function deleteSelectedBlocks() {
+  if(selectedBlocks.size === 0) return;
+  
+  if(!confirm(`Supprimer ${selectedBlocks.size} bloc(s) sélectionné(s) ?`)) return;
+  
+  // Grouper par lane pour supprimer efficacement
+  const blocksToDelete = {};
+  selectedBlocks.forEach(blockId => {
+    const [laneId, blockIdx] = blockId.split('-').map(Number);
+    if(!blocksToDelete[laneId]) blocksToDelete[laneId] = [];
+    blocksToDelete[laneId].push(blockIdx);
+  });
+  
+  // Supprimer en ordre décroissant pour ne pas décaler les index
+  Object.entries(blocksToDelete).forEach(([laneId, indices]) => {
+    const lane = LANES.find(l => l.id === parseInt(laneId));
+    if(!lane) return;
+    
+    indices.sort((a, b) => b - a).forEach(idx => {
+      lane.blocks.splice(idx, 1);
+    });
+  });
+  
+  clearSelection();
+  historyManager.saveState({ lanes: LANES });
+}
+
+function moveSelectedBlocks(deltaTime) {
+  if(selectedBlocks.size === 0) return;
+  
+  // Grouper par lane
+  const blocksByLane = {};
+  selectedBlocks.forEach(blockId => {
+    const [laneId, blockIdx] = blockId.split('-').map(Number);
+    if(!blocksByLane[laneId]) blocksByLane[laneId] = [];
+    blocksByLane[laneId].push(blockIdx);
+  });
+  
+  // Déplacer tous les blocs
+  Object.entries(blocksByLane).forEach(([laneId, indices]) => {
+    const lane = LANES.find(l => l.id === parseInt(laneId));
+    if(!lane) return;
+    
+    indices.forEach(idx => {
+      const block = lane.blocks[idx];
+      if(!block) return;
+      
+      const newStart = Math.max(0, Math.min(MAX_TIME - block.duration, block.start + deltaTime));
+      block.start = newStart;
+    });
+  });
+  
+  renderLanes();
+  historyManager.saveState({ lanes: LANES });
+}
+
+// FULLSCREEN
+document.getElementById('btnFullscreen').addEventListener('click', () => {
+  const elem = document.documentElement;
+  if(!document.fullscreenElement) {
+    if(elem.requestFullscreen) {
+      elem.requestFullscreen();
+    } else if(elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    } else if(elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+    }
+  } else {
+    if(document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+});
+
+// TOGGLE SIDEBAR
+document.getElementById('toggleSidebar').addEventListener('click', () => {
+  const app = document.getElementById('app');
+  const btn = document.getElementById('toggleSidebar');
+  app.classList.toggle('sidebar-hidden');
+  btn.textContent = app.classList.contains('sidebar-hidden') ? '▶' : '◀';
+  // Re-render après transition
+  setTimeout(() => {
+    if(LANES.length > 0) renderLanes();
+  }, 350);
+});
+
+// ZOOM GLOBAL iOS
+document.querySelectorAll('.global-zoom-btn[data-global-zoom]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const zoomLevel = parseFloat(btn.dataset.globalZoom);
+    applyGlobalZoom(zoomLevel);
+    document.querySelectorAll('.global-zoom-btn[data-global-zoom]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+let globalZoomLevel = 1;
+
+function applyGlobalZoom(level) {
+  globalZoomLevel = level;
+  const lanes = document.getElementById('lanes');
+  
+  if(level === 1) {
+    lanes.classList.remove('zoomed');
+    lanes.style.transform = '';
+    lanes.style.width = '';
+  } else {
+    lanes.classList.add('zoomed');
+    lanes.style.transform = `scale(${level})`;
+    lanes.style.width = (100 / level) + '%';
+  }
+  
+  // Recalculer les lanes avec la nouvelle largeur
+  renderLanes();
+}
+
+// [RESTE DU CODE IDENTIQUE À V8 - fonctions hasCollision, findNextFreeSlot, getTypeClass, etc.]
+
+function hasCollision(lane, newBlock, excludeIdx = -1) {
+  // Les logos ne génèrent pas de collision
+  if(newBlock.type === 'logo') return false;
+  
+  const newStart = newBlock.start;
+  const newEnd = newBlock.start + newBlock.duration;
+  
+  return lane.blocks.some((existing, idx) => {
+    if(idx === excludeIdx) return false;
+    
+    // Les logos existants ne bloquent pas non plus
+    if(existing.type === 'logo') return false;
+    
+    const existingStart = existing.start;
+    const existingEnd = existing.start + existing.duration;
+    
+    return !(newEnd <= existingStart || newStart >= existingEnd);
+  });
+}
+
+function findNextFreeSlot(lane, duration, preferredStart = 0, blockType = null) {
+  // Si c'est un logo, on peut le placer directement à la position préférée
+  if(blockType === 'logo') {
+    return preferredStart;
+  }
+  
+  // ⚠️ NOUVEAU COMPORTEMENT : On place TOUJOURS à la position préférée
+  // Le feedback visuel rouge indiquera les collisions
+  // Mais le bloc ne "saute" plus ailleurs
+  return Math.max(0, Math.min(preferredStart, MAX_TIME - duration));
+}
+
+// Trouve le meilleur emplacement pour "caler" un bloc après un déplacement vertical
+function findBestSnapPosition(lane, duration, desiredStart, excludeIdx = -1) {
+  const SNAP_TOLERANCE = 0.5; // minutes - si distance < 0.5min → snap, sinon position exacte
+  
+  // Filtrer les blocs non-logo de la lane (exclure le bloc en cours de déplacement)
+  const otherBlocks = lane.blocks
+    .map((b, idx) => ({...b, idx}))
+    .filter(b => b.idx !== excludeIdx && b.type !== 'logo')
+    .sort((a, b) => a.start - b.start);
+  
+  // Si pas d'autres blocs, on peut placer exactement où on veut
+  if(otherBlocks.length === 0) {
+    return Math.max(0, Math.min(desiredStart, MAX_TIME - duration));
+  }
+  
+  // Vérifier d'abord si la position désirée est libre (pas de collision)
+  const desiredEnd = desiredStart + duration;
+  let hasCollisionAtDesired = false;
+  
+  for(const block of otherBlocks) {
+    const blockEnd = block.start + block.duration;
+    if(!(desiredEnd <= block.start || desiredStart >= blockEnd)) {
+      hasCollisionAtDesired = true;
+      break;
+    }
+  }
+  
+  // Si pas de collision à la position désirée → garder position exacte
+  if(!hasCollisionAtDesired) {
+    return Math.max(0, Math.min(desiredStart, MAX_TIME - duration));
+  }
+  
+  // Sinon, chercher le snap le plus proche avec tolérance
+  let closestGap = null;
+  let minDistance = Infinity;
+  
+  // Option 1: Avant le premier bloc
+  if(otherBlocks[0].start >= duration) {
+    const snapPos = Math.max(0, otherBlocks[0].start - duration);
+    const distance = Math.abs(snapPos - desiredStart);
+    if(distance < minDistance && distance <= SNAP_TOLERANCE) {
+      minDistance = distance;
+      closestGap = snapPos;
+    }
+  }
+  
+  // Option 2: Entre deux blocs
+  for(let i = 0; i < otherBlocks.length - 1; i++) {
+    const gapStart = otherBlocks[i].start + otherBlocks[i].duration;
+    const gapEnd = otherBlocks[i + 1].start;
+    const gapSize = gapEnd - gapStart;
+    
+    if(gapSize >= duration) {
+      // Essayer de caler à gauche (contre le bloc précédent)
+      const snapLeft = gapStart;
+      const distanceLeft = Math.abs(snapLeft - desiredStart);
+      if(distanceLeft < minDistance && distanceLeft <= SNAP_TOLERANCE) {
+        minDistance = distanceLeft;
+        closestGap = snapLeft;
+      }
+      
+      // Essayer de caler à droite (contre le bloc suivant)
+      const snapRight = gapEnd - duration;
+      const distanceRight = Math.abs(snapRight - desiredStart);
+      if(distanceRight < minDistance && distanceRight <= SNAP_TOLERANCE) {
+        minDistance = distanceRight;
+        closestGap = snapRight;
+      }
+    }
+  }
+  
+  // Option 3: Après le dernier bloc
+  const lastBlock = otherBlocks[otherBlocks.length - 1];
+  const endPosition = lastBlock.start + lastBlock.duration;
+  if(endPosition + duration <= MAX_TIME) {
+    const snapEnd = endPosition;
+    const distanceEnd = Math.abs(snapEnd - desiredStart);
+    if(distanceEnd < minDistance && distanceEnd <= SNAP_TOLERANCE) {
+      minDistance = distanceEnd;
+      closestGap = snapEnd;
+    }
+  }
+  
+  // Si un snap proche trouvé → utiliser
+  if(closestGap !== null) {
+    return closestGap;
+  }
+  
+  // ⚠️ NOUVEAU COMPORTEMENT : Pas de snap proche
+  // → On laisse le bloc à sa position désirée MÊME EN COLLISION
+  // → Le feedback visuel rouge indiquera le problème
+  // → Mais le bloc ne "saute" plus ailleurs
+  return Math.max(0, Math.min(desiredStart, MAX_TIME - duration));
+}
+
+
+function getTypeClass(type) {
+  const t = (type || '').toLowerCase().trim()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Retire les accents
+  
+  if(t.includes('logo')) return 'logo';
+  if(t.includes('note')) return 'note';
+  if(t.includes('pick')) return 'pick';
+  if(t.includes('sousass') || t.includes('sous-ass') || t.includes('sous ass') || t.includes('sub') || t.includes('s-a')) return 'sousass';
+  
+  // Contrôle/Inspection en priorité
+  if(t.includes('insp') || t.includes('control') || t.includes('controle')) return 'insp';
+  
+  // Checkpoint seulement si c'est explicitement marqué
+  if(t.includes('checkpoint') || t.includes('check-point')) return 'checkpoint';
+  
+  if(t.includes('equipment') || t.includes('equipement') || t.includes('machine') || t.includes('outil')) return 'equipment';
+  if(t.includes('zone') || t.includes('espace') || t.includes('lieu')) return 'zone';
+  
+  if(t.includes('tug')) {
+    if(t.includes('acc') || t.includes('accroche')) return 'tug-acc';
+    if(t.includes('dec') || t.includes('decroche')) return 'tug-dec';
+    return 'tug-route';
+  }
+  
+  return 'pick';
+}
+
+function getTypeColor(type) {
+  const cls = getTypeClass(type);
+  const colors = {
+    pick: '#93C5FD',
+    'tug-route': '#FFDD88',
+    'tug-acc': '#FFB84D',
+    'tug-dec': '#FF9933',
+    sousass: '#CDDC39',
+    insp: '#A7F3D0',
+    checkpoint: '#F472B6',
+    equipment: '#A78BFA',
+    zone: '#FCD34D',
+    logo: '#667eea',
+    note: '#FEF3C7'
+  };
+  return colors[cls] || '#ccc';
+}
+
+function filterLibrary(searchTerm) {
+  const term = searchTerm.toLowerCase().trim();
+  
+  const clearBtn = document.getElementById('searchClear');
+  if(term) {
+    clearBtn.classList.add('visible');
+  } else {
+    clearBtn.classList.remove('visible');
+  }
+  
+  if(!term) {
+    renderLibrary();
+    return;
+  }
+  
+  const filtered = LIBRARY.filter(item => {
+    return item.label.toLowerCase().includes(term) ||
+           item.lane.toLowerCase().includes(term) ||
+           item.type.toLowerCase().includes(term);
+  });
+  
+  renderLibrary(filtered);
+}
+
+function renderLibrary(filteredLib = null) {
+  const content = document.getElementById('libContent');
+  
+  // Toujours combiner LOGO_LIBRARY avec la bibliothèque principale
+  const combinedLibrary = [...LOGO_LIBRARY, ...LIBRARY];
+  const libToRender = filteredLib ? filteredLib.concat(LOGO_LIBRARY.filter(logo => {
+    const term = document.getElementById('searchInput').value.toLowerCase().trim();
+    return logo.label.toLowerCase().includes(term);
+  })) : combinedLibrary;
+  
+  if(LIBRARY.length === 0 && libToRender.length === LOGO_LIBRARY.length) {
+    content.innerHTML = `
+      <div class="empty-library">
+        <h3>📦 Bibliothèque</h3>
+        <p>Les logos sont disponibles</p>
+      </div>
+    `;
+    document.getElementById('libCount').textContent = `${LOGO_LIBRARY.length} logos disponibles`;
+    return;
+  }
+  
+  if(libToRender.length === 0) {
+    content.innerHTML = `
+      <div class="no-results">
+        <h3>🔍 Aucun résultat</h3>
+        <p>Essaie un autre terme de recherche</p>
+      </div>
+    `;
+    document.getElementById('libCount').textContent = '0 résultats';
+    return;
+  }
+  
+  const groups = {};
+  libToRender.forEach(item => {
+    if(!groups[item.lane]) groups[item.lane] = [];
+    groups[item.lane].push(item);
+  });
+  
+  const totalShown = libToRender.length;
+  const totalAll = combinedLibrary.length;
+  const countText = filteredLib ? 
+    `${totalShown} résultats (sur ${totalAll})` : 
+    `${totalAll} blocs disponibles (${Object.keys(groups).length} catégories)`;
+  document.getElementById('libCount').textContent = countText;
+  
+  let html = '';
+  
+  // Trier pour afficher "Logos" en premier
+  const sortedLanes = Object.keys(groups).sort((a, b) => {
+    if(a === 'Logos') return -1;
+    if(b === 'Logos') return 1;
+    return a.localeCompare(b);
+  });
+  
+  sortedLanes.forEach(laneName => {
+    const items = groups[laneName];
+    const isCollapsed = collapsedCategories.has(laneName);
+    
+    html += `
+      <div class="lib-category ${isCollapsed ? 'collapsed' : ''}" data-lane="${laneName}">
+        <div class="lib-category-header">
+          <span class="category-toggle">▼</span>
+          <span class="category-title">${laneName}</span>
+          <span class="category-count">${items.length}</span>
+        </div>
+        <div class="lib-category-content">
+    `;
+    
+    items.forEach((item) => {
+      const color = getTypeColor(item.type);
+      const isLogo = item.type === 'logo';
+      const itemIndex = isLogo ? LOGO_LIBRARY.indexOf(item) : LIBRARY.indexOf(item);
+      
+      html += `
+        <div class="lib-block" draggable="true" data-idx="${itemIndex}" data-is-logo="${isLogo}" style="display:flex;align-items:center;gap:8px">
+          <div class="lib-color" style="background:${color};${isLogo ? 'font-size:16px;display:flex;align-items:center;justify-content:center;' : ''}">${isLogo ? item.icon : ''}</div>
+          <div style="flex:1">
+            <div class="name">${item.label}</div>
+            <div class="info">${item.duration.toFixed(1)}' · ${item.type}</div>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  });
+  
+  content.innerHTML = html;
+  
+  document.querySelectorAll('.lib-category-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const category = header.closest('.lib-category');
+      const laneName = category.dataset.lane;
+      
+      if(collapsedCategories.has(laneName)) {
+        collapsedCategories.delete(laneName);
+        category.classList.remove('collapsed');
+      } else {
+        collapsedCategories.add(laneName);
+        category.classList.add('collapsed');
+      }
+    });
+  });
+  
+  document.querySelectorAll('.lib-block').forEach(block => {
+    block.addEventListener('dragstart', (e) => {
+      const idx = parseInt(block.dataset.idx);
+      const isLogo = block.dataset.isLogo === 'true';
+      draggedLibBlock = isLogo ? LOGO_LIBRARY[idx] : LIBRARY[idx];
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    
+    block.addEventListener('dragend', () => {
+      draggedLibBlock = null;
+    });
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  filterLibrary(e.target.value);
+});
+
+document.getElementById('searchClear').addEventListener('click', () => {
+  document.getElementById('searchInput').value = '';
+  filterLibrary('');
+});
+
+// TOGGLE DESCRIPTIONS
+let descriptionsVisible = true;
+document.getElementById('toggleDescriptions').addEventListener('click', () => {
+  descriptionsVisible = !descriptionsVisible;
+  const btn = document.getElementById('toggleDescriptions');
+  const allInfos = document.querySelectorAll('.lib-block .info');
+  
+  if (descriptionsVisible) {
+    btn.classList.remove('hidden-desc');
+    btn.title = 'Masquer descriptions';
+    allInfos.forEach(info => info.style.display = 'block');
+  } else {
+    btn.classList.add('hidden-desc');
+    btn.title = 'Afficher descriptions';
+    allInfos.forEach(info => info.style.display = 'none');
+  }
+});
+
+// TOGGLE LANE NAMES
+let laneNamesVisible = true;
+document.getElementById('toggleLaneNames').addEventListener('click', () => {
+  laneNamesVisible = !laneNamesVisible;
+  const btn = document.getElementById('toggleLaneNames');
+  const allLaneHeaders = document.querySelectorAll('.lane-header');
+  
+  if (laneNamesVisible) {
+    btn.textContent = '👁️ Lanes';
+    btn.style.background = '#fff';
+    allLaneHeaders.forEach(header => header.style.display = 'flex');
+  } else {
+    btn.textContent = '👁️ Lanes';
+    btn.style.background = '#e5e7eb';
+    allLaneHeaders.forEach(header => header.style.display = 'none');
+  }
+});
+
+// TOGGLE BLOCK LABELS (descriptions sous les blocs)
+let blockLabelsVisible = false;
+// Appliquer l'état initial (texte caché)
+document.getElementById('toggleBlockLabels').classList.add('btn-inactive');
+
+document.getElementById('toggleBlockLabels').addEventListener('click', () => {
+  blockLabelsVisible = !blockLabelsVisible;
+  const btn = document.getElementById('toggleBlockLabels');
+  
+  if (blockLabelsVisible) {
+    btn.classList.remove('btn-inactive');
+  } else {
+    btn.classList.add('btn-inactive');
+  }
+  
+  // Re-render pour appliquer le changement
+  renderLanes();
+});
+
+document.getElementById('csvUpload').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    Papa.parse(evt.target.result, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: false,
+      delimiter: ';',
+      complete: function(results) {
+        // Compter les blocs avant chargement
+        const beforeCount = LIBRARY.length;
+        let addedCount = 0;
+        let skippedCount = 0;
+        
+        // Détecter le format : unifié (Start+Duration) ou legacy (Start_mm+End_mm)
+        const firstRow = results.data[0] || {};
+        const isUnifiedFormat = 'Duration' in firstRow && 'Start' in firstRow;
+        const isLegacyFormat = 'Start_mm' in firstRow && 'End_mm' in firstRow;
+        
+        // Fonction pour vérifier si un bloc existe déjà (même Label + Lane + Duration arrondie)
+        function blockExists(lane, label, duration) {
+          return LIBRARY.some(b => 
+            b.lane === lane && 
+            b.label === label && 
+            Math.abs(b.duration - duration) < 0.01
+          );
+        }
+        
+        results.data.forEach(row => {
+          let duration, lane, label, type, option, cell, rack, standard, poste, parentId, notes;
+          
+          if(isUnifiedFormat) {
+            // FORMAT UNIFIÉ: ID;Lane;Label;Start;Duration;Type;Rack;Option;Standard;Poste;ParentID;Notes
+            if(!row.Lane || !row.Label || row.Duration == null) return;
+            // Ignorer les lignes macro (on garde uniquement les micro-ops pour la bibliothèque)
+            if(row.Type === 'macro') return;
+            
+            duration = parseFloat(row.Duration) || 0;
+            lane = row.Lane;
+            label = row.Label;
+            type = row.Type || 'run';
+            option = row.Option || 'BASE';
+            cell = row.ID || '';
+            rack = row.Rack || '';
+            standard = row.Standard || '';
+            poste = row.Poste || '';
+            parentId = row.ParentID || '';
+            notes = row.Notes || '';
+          } else if(isLegacyFormat) {
+            // FORMAT LEGACY: Lane;Label;Start_mm;End_mm;Cell;Type;Option
+            if(!row.Lane || !row.Label || row.Start_mm == null || row.End_mm == null) return;
+            
+            duration = parseFloat(row.End_mm) - parseFloat(row.Start_mm);
+            lane = row.Lane;
+            label = row.Label;
+            type = row.Type || 'run';
+            option = row.Option || 'BASE';
+            cell = row.Cell || '';
+            rack = '';
+            standard = '';
+            poste = '';
+            parentId = '';
+            notes = '';
+          } else {
+            // Format non reconnu
+            return;
+          }
+          
+          if(duration > 0) {
+            // Vérifier si le bloc existe déjà
+            if(blockExists(lane, label, duration)) {
+              skippedCount++;
+              return; // Ignorer le doublon
+            }
+            
+            LIBRARY.push({
+              lane: lane,
+              cell: cell,
+              label: label,
+              duration: duration,
+              type: type,
+              option: option,
+              rack: rack,
+              standard: standard,
+              poste: poste,
+              parentId: parentId,
+              notes: notes
+            });
+            addedCount++;
+          }
+        });
+        
+        if(addedCount === 0 && skippedCount === 0) {
+          document.getElementById('uploadStatus').textContent = '⚠️ Aucun bloc valide trouvé';
+          alert('Format CSV non reconnu. Formats acceptés :\n- Unifié: ID;Lane;Label;Start;Duration;Type;...\n- Legacy: Lane;Label;Start_mm;End_mm;Cell;Type;Option');
+          return;
+        }
+        
+        document.getElementById('uploadZone').classList.add('loaded');
+        const formatInfo = isUnifiedFormat ? '(unifié)' : '(legacy)';
+        
+        // Message informatif selon le cas
+        let statusMsg = '';
+        if(beforeCount === 0) {
+          statusMsg = `✅ ${addedCount} blocs chargés ${formatInfo}`;
+        } else if(skippedCount > 0) {
+          statusMsg = `✅ +${addedCount} nouveaux, ${skippedCount} doublons ignorés (total: ${LIBRARY.length})`;
+        } else {
+          statusMsg = `✅ +${addedCount} blocs ajoutés (total: ${LIBRARY.length})`;
+        }
+        document.getElementById('uploadStatus').textContent = statusMsg;
+        
+        // Replier TOUTES les catégories par défaut
+        collapsedCategories.clear();
+        const lanes = [...new Set(LIBRARY.map(b => b.lane))];
+        lanes.forEach(lane => collapsedCategories.add(lane));
+        // Ajouter aussi Logos aux catégories repliées
+        collapsedCategories.add('Logos');
+        
+        renderLibrary();
+        setTimeout(() => zoomToFit(), 100);
+        historyManager.clear();
+        historyManager.saveState({ lanes: LANES });
+      },
+      error: function(err) {
+        document.getElementById('uploadStatus').textContent = '❌ Erreur de chargement';
+        alert('Erreur lors du chargement du CSV !');
+      }
+    });
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+function createLane(name = '') {
+  laneCounter++;
+  const lane = {
+    id: laneCounter,
+    name: name || `Lane ${laneCounter}`,
+    blocks: []
+  };
+  LANES.push(lane);
+  renderLanes();
+  historyManager.saveState({ lanes: LANES });
+  return lane;
+}
+
+function renderLanes() {
+  const container = document.getElementById('lanes');
+  
+  if(LANES.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <h3>Aucune lane créée</h3>
+        <p>Clique sur "➕ Ajouter Lane" pour commencer !</p>
+      </div>
+    `;
+    updateKPI();
+    return;
+  }
+  
+  const canvas = document.getElementById('canvas');
+  // Prendre toute la largeur disponible, compensée par le zoom global
+  const baseWidth = (canvas.clientWidth - 20) / globalZoomLevel;
+  const trackWidthPx = baseWidth * zoomScale;
+  
+  container.innerHTML = LANES.map(lane => {
+    const blocksHtml = lane.blocks.map((block, idx) => {
+      const left = (block.start / MAX_TIME) * 100;
+      const width = (block.duration / MAX_TIME) * 100;
+      const isLogo = block.type === 'logo';
+      const displayContent = isLogo ? block.icon || '📍' : `${block.duration.toFixed(1)}'`;
+      const extraClass = block.specialClass ? ` ${block.specialClass}` : '';
+      
+      // Vérifier si ce bloc est sélectionné
+      const blockId = `${lane.id}-${idx}`;
+      const isSelected = selectedBlocks.has(blockId);
+      const selectedClass = isSelected ? ' selected' : '';
+      const selectionCount = selectedBlocks.size > 1 ? `×${selectedBlocks.size}` : '';
+      
+      return `
+        <div class="track-block ${getTypeClass(block.type)}${extraClass}${selectedClass}" 
+             style="left:${left}%;width:${width}%"
+             data-lane-id="${lane.id}"
+             data-block-idx="${idx}"
+             data-selection-count="${selectionCount}">
+          <span class="btn-delete" data-lane-id="${lane.id}" data-block-idx="${idx}">✕</span>
+          <span class="duration">${displayContent}</span>
+        </div>
+      `;
+    }).join('');
+    
+    const labelsHtml = lane.blocks
+      .filter(block => block.type !== 'logo') // Ne pas afficher les labels pour les logos
+      .map((block, idx) => {
+      const left = (block.start / MAX_TIME) * 100;
+      const words = block.label.split(' ');
+      const line1 = words.slice(0, 2).join(' ');
+      const line2 = words.length > 2 ? words.slice(2).join(' ') : '';
+      
+      // Trouver l'index réel du bloc dans lane.blocks (pas juste dans les non-logos)
+      const realIdx = lane.blocks.indexOf(block);
+      
+      return `
+        <div class="label-marker" data-lane-id="${lane.id}" data-block-idx="${realIdx}" style="left:${left}%;display:${blockLabelsVisible ? 'block' : 'none'}">
+          <div class="label-line">${line1}</div>
+          ${line2 ? `<div class="label-line">${line2}</div>` : ''}
+          <div class="label-duration">${block.duration.toFixed(1)}'</div>
+        </div>
+      `;
+    }).join('');
+    
+    return `
+      <div class="lane-editor" data-lane-id="${lane.id}">
+        <div class="lane-content">
+          <div class="lane-header">
+            <button class="btn-lane-action" data-lane-id="${lane.id}" draggable="true" title="Glisser pour déplacer, clic pour supprimer">⠿</button>
+            <input type="text" value="${lane.name}" data-lane-id="${lane.id}" class="lane-name-input">
+          </div>
+          <div class="lane-track ${SHOW_ALL_TICKS ? 'cin-show-ticks' : ''}" data-lane-id="${lane.id}" style="width:${trackWidthPx}px">
+            <div class="ticksTop">${generateTicksHTML()}</div>
+            <div class="time-cursor"></div>
+            ${blocksHtml}
+            <div class="label-markers">${labelsHtml}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  attachLaneEvents();
+  updateKPI();
+}
+
+function attachLaneEvents() {
+  document.querySelectorAll('.lane-track').forEach(track => {
+    track.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if(!draggedLibBlock) return;
+      
+      // Le curseur sera géré par le survol des briques, pas ici
+    });
+    
+    track.addEventListener('dragleave', () => {
+      // Rien à faire
+    });
+    
+    track.addEventListener('drop', (e) => {
+      e.preventDefault();
+      
+      if(!draggedLibBlock) return;
+      
+      const laneId = parseInt(track.dataset.laneId);
+      const lane = LANES.find(l => l.id === laneId);
+      if(!lane) return;
+      
+      const rect = track.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const dropTime = (x / rect.width) * 70;
+      
+      const freeSlot = findNextFreeSlot(lane, draggedLibBlock.duration, dropTime, draggedLibBlock.type);
+      
+      lane.blocks.push({
+        label: draggedLibBlock.label,
+        start: freeSlot,
+        duration: draggedLibBlock.duration,
+        type: draggedLibBlock.type,
+        icon: draggedLibBlock.icon || null,
+        specialClass: draggedLibBlock.specialClass || null,
+        // Métadonnées supplémentaires pour le format unifié
+        rack: draggedLibBlock.rack || '',
+        option: draggedLibBlock.option || 'BASE',
+        standard: draggedLibBlock.standard || '',
+        poste: draggedLibBlock.poste || '',
+        parentId: draggedLibBlock.parentId || '',
+        notes: draggedLibBlock.notes || '',
+        cell: draggedLibBlock.cell || ''
+      });
+      
+      renderLanes();
+      historyManager.saveState({ lanes: LANES });
+    });
+  });
+  
+  document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Empêcher le click de se propager au bloc
+      
+      const laneId = parseInt(btn.dataset.laneId);
+      const blockIdx = parseInt(btn.dataset.blockIdx);
+      
+      const lane = LANES.find(l => l.id === laneId);
+      if(!lane) return;
+      
+      // Supprimer directement pour TOUS les types de blocs
+      lane.blocks.splice(blockIdx, 1);
+      
+      // Nettoyer la sélection si ce bloc était sélectionné
+      const blockId = `${laneId}-${blockIdx}`;
+      selectedBlocks.delete(blockId);
+      
+      renderLanes();
+      historyManager.saveState({ lanes: LANES });
+    });
+  });
+  
+  // Bouton combiné : clic = supprimer, drag = déplacer
+  document.querySelectorAll('.btn-lane-action').forEach(btn => {
+    let hasDragged = false;
+    
+    btn.addEventListener('mousedown', () => {
+      hasDragged = false;
+    });
+    
+    btn.addEventListener('dragstart', (e) => {
+      hasDragged = true;
+      const laneEditor = btn.closest('.lane-editor');
+      laneEditor.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', laneEditor.dataset.laneId);
+    });
+    
+    btn.addEventListener('dragend', () => {
+      const laneEditor = btn.closest('.lane-editor');
+      laneEditor.classList.remove('dragging');
+      
+      // Réorganiser l'array LANES selon l'ordre visuel actuel
+      const newOrder = [];
+      document.querySelectorAll('.lane-editor').forEach(editor => {
+        const laneId = parseInt(editor.dataset.laneId);
+        const lane = LANES.find(l => l.id === laneId);
+        if(lane) newOrder.push(lane);
+      });
+      
+      // Vérifier si l'ordre a changé
+      const orderChanged = newOrder.some((lane, i) => LANES[i]?.id !== lane.id);
+      if(orderChanged) {
+        LANES.length = 0;
+        LANES.push(...newOrder);
+        renderLanes();
+        historyManager.saveState({ lanes: LANES });
+      }
+    });
+    
+    btn.addEventListener('click', () => {
+      // Si on a fait un drag, ne pas supprimer
+      if(hasDragged) {
+        hasDragged = false;
+        return;
+      }
+      const laneId = parseInt(btn.dataset.laneId);
+      const idx = LANES.findIndex(l => l.id === laneId);
+      if(idx !== -1 && confirm('Supprimer cette lane ?')) {
+        LANES.splice(idx, 1);
+        renderLanes();
+        historyManager.saveState({ lanes: LANES });
+      }
+    });
+  });
+  
+  document.querySelectorAll('.lane-name-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const laneId = parseInt(input.dataset.laneId);
+      const lane = LANES.find(l => l.id === laneId);
+      if(lane) {
+        lane.name = input.value;
+        historyManager.saveState({ lanes: LANES });
+      }
+    });
+  });
+  
+  document.querySelectorAll('.track-block').forEach(block => {
+    let startX = 0;
+    let startLeft = 0;
+    let isDragging = false;
+    let hasMoved = false; // Flag pour détecter si on a vraiment bougé
+    
+    block.addEventListener('mousedown', (e) => {
+      if(e.target.classList.contains('btn-delete')) return;
+      
+      const laneId = parseInt(block.dataset.laneId);
+      const blockIdx = parseInt(block.dataset.blockIdx);
+      
+      // Gestion de la sélection multiple
+      if(e.shiftKey) {
+        e.preventDefault();
+        toggleBlockSelection(laneId, blockIdx, true);
+        return;
+      }
+      
+      // Si le bloc n'est pas sélectionné, le sélectionner
+      if(!isBlockSelected(laneId, blockIdx)) {
+        toggleBlockSelection(laneId, blockIdx, false);
+      }
+      
+      isDragging = true;
+      hasMoved = false; // Reset du flag
+      startX = e.clientX;
+      startLeft = block.offsetLeft;
+      
+      draggedTrackBlock = {laneId, blockIdx};
+      
+      const track = block.closest('.lane-track');
+      const cursor = track.querySelector('.time-cursor');
+      
+      const onMove = (e) => {
+        if(!isDragging) return;
+        
+        const dx = e.clientX - startX;
+        
+        // Seuil de mouvement : doit bouger d'au moins 3 pixels
+        if(Math.abs(dx) > 3) {
+          hasMoved = true;
+          block.classList.add('dragging');
+        }
+        
+        if(!hasMoved) return; // Ne pas déplacer visuellement si pas de mouvement réel
+        
+        const newLeft = Math.max(0, startLeft + dx);
+        
+        // Déplacement libre - pas de collision pendant le drag
+        block.style.left = `${(newLeft / block.parentElement.offsetWidth) * 100}%`;
+        
+        // Mettre à jour le curseur vert qui suit
+        const newTime = (newLeft / block.parentElement.offsetWidth) * MAX_TIME;
+        cursor.style.left = `${(newTime / MAX_TIME) * 100}%`;
+        cursor.setAttribute('data-time', `${newTime.toFixed(1)}'`);
+        cursor.classList.add('visible');
+      };
+      
+      const onUp = () => {
+        if(!isDragging) return;
+        isDragging = false;
+        block.classList.remove('dragging');
+        
+        // Masquer le curseur
+        cursor.classList.remove('visible');
+        
+        // Si on n'a pas vraiment bougé, ne rien faire (juste un click)
+        if(!hasMoved) {
+          draggedTrackBlock = null;
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          return;
+        }
+        
+        if(draggedTrackBlock) {
+          const lane = LANES.find(l => l.id === draggedTrackBlock.laneId);
+          const targetBlock = lane.blocks[draggedTrackBlock.blockIdx];
+          let desiredStart = (block.offsetLeft / block.parentElement.offsetWidth) * MAX_TIME;
+          
+          // Calculer le delta de déplacement
+          const deltaTime = desiredStart - targetBlock.start;
+          
+          // Si plusieurs blocs sont sélectionnés (plus que celui qu'on drag), les déplacer tous ensemble SANS collision
+          if(selectedBlocks.size > 1) {
+            selectedBlocks.forEach(blockId => {
+              const [selLaneId, selBlockIdx] = blockId.split('-').map(Number);
+              const selLane = LANES.find(l => l.id === selLaneId);
+              if(!selLane) return;
+              
+              const selBlock = selLane.blocks[selBlockIdx];
+              if(!selBlock) return;
+              
+              // Appliquer le même déplacement à tous les blocs (sans collision pour le groupe)
+              const newStart = Math.max(0, Math.min(MAX_TIME - selBlock.duration, selBlock.start + deltaTime));
+              selBlock.start = newStart;
+            });
+            
+            historyManager.saveState({ lanes: LANES });
+          } else {
+            // Un seul bloc : comportement normal AVEC collision
+            // Les logos peuvent aller partout sans collision
+            if(targetBlock.type === 'logo') {
+              targetBlock.start = desiredStart;
+              historyManager.saveState({ lanes: LANES });
+            } else {
+              // Pour les blocs normaux : trouver le meilleur emplacement (snap intelligent avec collision)
+              const snapPosition = findBestSnapPosition(lane, targetBlock.duration, desiredStart, draggedTrackBlock.blockIdx);
+              targetBlock.start = snapPosition;
+              historyManager.saveState({ lanes: LANES });
+            }
+          }
+          
+          draggedTrackBlock = null;
+          renderLanes();
+        }
+        
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    
+    // Afficher le curseur vert au survol d'une brique
+    block.addEventListener('mouseenter', (e) => {
+      const track = block.closest('.lane-track');
+      const cursor = track.querySelector('.time-cursor');
+      const blockStart = parseFloat(block.style.left) / 100 * MAX_TIME;
+      
+      cursor.style.left = block.style.left;
+      cursor.setAttribute('data-time', `${blockStart.toFixed(1)}'`);
+      cursor.classList.add('visible');
+    });
+    
+    block.addEventListener('mouseleave', () => {
+      const track = block.closest('.lane-track');
+      const cursor = track.querySelector('.time-cursor');
+      cursor.classList.remove('visible');
+    });
+    
+    // CLIC BLOC = POPUP DÉTAIL
+    block.addEventListener('click', (e) => {
+      // Ne rien faire si on a cliqué sur le bouton delete
+      if(e.target.classList.contains('btn-delete')) {
+        return; // Laisser le btn-delete gérer
+      }
+      
+      e.stopPropagation();
+      
+      // Fermer un popup déjà ouvert
+      const existingPopup = document.querySelector('.block-detail-popup');
+      if(existingPopup) {
+        existingPopup.remove();
+        document.querySelectorAll('.track-block.expanded').forEach(b => b.classList.remove('expanded'));
+      }
+      
+      // Si on clique sur le même bloc, on ferme juste
+      if(block.classList.contains('expanded')) {
+        block.classList.remove('expanded');
+        return;
+      }
+      
+      // Marquer le bloc comme expanded
+      block.classList.add('expanded');
+      
+      // Récupérer les données du bloc
+      const laneId = parseInt(block.dataset.laneId);
+      const blockIdx = parseInt(block.dataset.blockIdx);
+      const lane = LANES.find(l => l.id === laneId);
+      const blockData = lane.blocks[blockIdx];
+      
+      // Créer le popup
+      const popup = document.createElement('div');
+      popup.className = 'block-detail-popup';
+      popup.innerHTML = `
+        <div class="header">
+          <div class="title">${blockData.label}</div>
+          <button class="close" data-action="close">×</button>
+        </div>
+        <div class="info-grid">
+          <div class="info-label">Durée:</div>
+          <div class="info-value">${blockData.duration.toFixed(2)} min</div>
+          
+          <div class="info-label">Début:</div>
+          <div class="info-value">${blockData.start.toFixed(2)} min</div>
+          
+          <div class="info-label">Fin:</div>
+          <div class="info-value">${(blockData.start + blockData.duration).toFixed(2)} min</div>
+          
+          <div class="info-label">Type:</div>
+          <div class="info-value">${blockData.type}</div>
+          
+          <div class="info-label">Lane:</div>
+          <div class="info-value">${lane.name}</div>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb">
+          <button class="delete-btn" data-action="delete" style="width:100%;background:#ef4444;color:#fff;border:none;padding:8px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;transition:all .2s">
+            🗑️ Supprimer ce bloc
+          </button>
+        </div>
+      `;
+      
+      // Ajouter le popup au bloc
+      block.style.position = 'relative';
+      block.appendChild(popup);
+      
+      // Bouton fermer (✕)
+      popup.querySelector('[data-action="close"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        popup.remove();
+        block.classList.remove('expanded');
+      });
+      
+      // Bouton supprimer (🗑️)
+      popup.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        if(confirm(`Supprimer "${blockData.label}" ?`)) {
+          lane.blocks.splice(blockIdx, 1);
+          
+          // Nettoyer la sélection
+          const blockId = `${laneId}-${blockIdx}`;
+          selectedBlocks.delete(blockId);
+          
+          popup.remove();
+          renderLanes();
+          historyManager.saveState({ lanes: LANES });
+        }
+      });
+    });
+  });
+  
+  // DRAG & DROP DES LANES
+  const lanesContainer = document.getElementById('lanes');
+  
+  lanesContainer.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const dragging = lanesContainer.querySelector('.lane-editor.dragging');
+    if(!dragging) return;
+    
+    // ✅ OPTIMISATION : Ne pas recalculer si l'élément n'a pas changé
+    const afterElement = getDragAfterElement(lanesContainer, e.clientY);
+    const currentNext = dragging.nextElementSibling;
+    
+    // Seulement déplacer si la position change vraiment
+    if(afterElement !== currentNext) {
+      if(afterElement == null) {
+        lanesContainer.appendChild(dragging);
+      } else {
+        lanesContainer.insertBefore(dragging, afterElement);
+      }
+    }
+  });
+  
+  lanesContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    
+    // ⚠️ IMPORTANT : Enlever la classe dragging AVANT le renderLanes
+    // Sinon l'élément est recréé et la classe reste "fantôme"
+    const draggingElement = lanesContainer.querySelector('.lane-editor.dragging');
+    if(draggingElement) {
+      draggingElement.classList.remove('dragging');
+    }
+    
+    // Réorganiser l'array LANES selon l'ordre visuel
+    const newOrder = [];
+    document.querySelectorAll('.lane-editor').forEach(editor => {
+      const laneId = parseInt(editor.dataset.laneId);
+      const lane = LANES.find(l => l.id === laneId);
+      if(lane) newOrder.push(lane);
+    });
+    LANES.length = 0;
+    LANES.push(...newOrder);
+    
+    // Re-render pour mettre à jour proprement
+    renderLanes();
+    historyManager.saveState({ lanes: LANES });
+  });
+  
+  // 🎯 KAIZEN : Afficher le texte descriptif au survol d'un bloc
+  document.querySelectorAll('.track-block').forEach(block => {
+    // Ignorer les logos qui n'ont pas de texte descriptif
+    const blockType = block.classList.contains('logo');
+    if(blockType) return;
+    
+    block.addEventListener('mouseenter', () => {
+      const laneId = block.dataset.laneId;
+      const blockIdx = block.dataset.blockIdx;
+      
+      // Trouver le label-marker correspondant
+      const labelMarker = document.querySelector(`.label-marker[data-lane-id="${laneId}"][data-block-idx="${blockIdx}"]`);
+      
+      if(labelMarker) {
+        // Afficher temporairement le texte même s'il est masqué globalement
+        labelMarker.style.display = 'block';
+        labelMarker.classList.add('hover-visible');
+      }
+    });
+    
+    block.addEventListener('mouseleave', () => {
+      const laneId = block.dataset.laneId;
+      const blockIdx = block.dataset.blockIdx;
+      
+      // Trouver le label-marker correspondant
+      const labelMarker = document.querySelector(`.label-marker[data-lane-id="${laneId}"][data-block-idx="${blockIdx}"]`);
+      
+      if(labelMarker && labelMarker.classList.contains('hover-visible')) {
+        // Remettre l'état d'origine (selon blockLabelsVisible)
+        labelMarker.style.display = blockLabelsVisible ? 'block' : 'none';
+        labelMarker.classList.remove('hover-visible');
+      }
+    });
+  });
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.lane-editor:not(.dragging)')];
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    
+    if(offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function updateKPI() {
+  let maxTime = 0;
+  let taskCount = 0;
+  
+  LANES.forEach(lane => {
+    lane.blocks.forEach(block => {
+      const endTime = block.start + block.duration;
+      if(endTime > maxTime) maxTime = endTime;
+      taskCount++;
+    });
+  });
+  
+  const used = maxTime;
+  const left = Math.max(0, 70 - used);
+  const rate = Math.min(100, (used / MAX_TIME) * 100);
+  
+  // Vérifier si les éléments KPI existent avant de les modifier
+  const kpiUsedEl = document.getElementById('kpiUsed');
+  const kpiLeftEl = document.getElementById('kpiLeft');
+  const kpiRateEl = document.getElementById('kpiRate');
+  
+  if(kpiUsedEl) {
+    kpiUsedEl.textContent = used.toFixed(1);
+    kpiUsedEl.classList.remove('warning', 'bad');
+    if(used > 70) kpiUsedEl.classList.add('bad');
+    else if(used > MAX_TIME * 0.9) kpiUsedEl.classList.add('warning');
+  }
+  if(kpiLeftEl) kpiLeftEl.textContent = left.toFixed(1);
+  if(kpiRateEl) kpiRateEl.textContent = rate.toFixed(0) + '%';
+}
+
+document.getElementById('btnAddLane').addEventListener('click', () => {
+  const name = prompt('Nom de la lane :', `Lane ${laneCounter + 1}`);
+  if(name) createLane(name);
+});
+
+document.getElementById('btnExport').addEventListener('click', () => {
+  if(LANES.length === 0) {
+    alert('Aucune lane à exporter !');
+    return;
+  }
+  
+  // Demander le nom du fichier
+  const defaultName = 'NEMAWASHI_timeline_' + new Date().toISOString().slice(0,10);
+  const fileName = prompt('Nom du fichier CSV :', defaultName);
+  if(!fileName) return; // Annulé
+  
+  // FORMAT UNIFIÉ: ID;Lane;Label;Start;Duration;Type;Rack;Option;Standard;Poste;ParentID;Notes
+  let csv = 'ID;Lane;Label;Start;Duration;Type;Rack;Option;Standard;Poste;ParentID;Notes\n';
+  
+  let globalBlockId = 1;
+  
+  LANES.forEach(lane => {
+    lane.blocks.forEach(block => {
+      // Générer un ID unique pour chaque bloc
+      const id = `BLK${String(globalBlockId++).padStart(4, '0')}`;
+      
+      // Récupérer les infos supplémentaires si elles existent (depuis la library d'origine)
+      const rack = block.rack || '';
+      const option = block.option || 'BASE';
+      const standard = block.standard || '';
+      const poste = block.poste || '';
+      const parentId = block.parentId || '';
+      const notes = block.notes || '';
+      
+      // Formater start et duration avec 2 décimales
+      const startFormatted = (block.start || 0).toFixed(2);
+      const durationFormatted = (block.duration || 0).toFixed(2);
+      
+      csv += `${id};${lane.name};${block.label};${startFormatted};${durationFormatted};${block.type};${rack};${option};${standard};${poste};${parentId};${notes}\n`;
+    });
+  });
+  
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  // Ajouter .csv si pas déjà présent
+  a.download = fileName.endsWith('.csv') ? fileName : fileName + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+window.addEventListener('load', () => {
+  // Initialiser les valeurs des inputs
+  document.getElementById('taktInput').value = MAX_TIME;
+  document.getElementById('tickInput').value = TICK_INTERVAL;
+  document.getElementById('toggleAllTicks').checked = SHOW_ALL_TICKS;
+  
+  // Replier Logos par défaut au démarrage
+  collapsedCategories.add('Logos');
+  renderLibrary(); // Afficher les logos dès le départ
+  loadAutoSave();
+  startAutoSave();
+  if(LANES.length > 0) {
+    zoomToFit();
+  }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (LIBRARY.length > 0 || LANES.length > 0) autoSave();
+});
+
+window.addEventListener('resize', () => {
+  if(LANES.length > 0) renderLanes();
+});
+
+// Fermer le popup de détail en cliquant ailleurs
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.track-block') && !e.target.closest('.block-detail-popup')) {
+    const popup = document.querySelector('.block-detail-popup');
+    if(popup) {
+      popup.remove();
+      document.querySelectorAll('.track-block.expanded').forEach(b => b.classList.remove('expanded'));
+    }
+  }
+});
+</script>
+</body>
+</html>
